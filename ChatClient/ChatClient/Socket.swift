@@ -47,7 +47,7 @@ class Socket: NSObject, NSStreamDelegate {
             print("Stream opened")
         case NSStreamEvent.HasBytesAvailable:
             if aStream == inputStream {
-                var buffer = [UInt8](count: 2048, repeatedValue: 0)
+                var buffer = [UInt8](count: 4096, repeatedValue: 0)
                 while inputStream.hasBytesAvailable {
                     let len = inputStream.read(&buffer, maxLength: buffer.count)
                     if len > 0 {
