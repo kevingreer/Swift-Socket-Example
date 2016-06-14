@@ -12,12 +12,27 @@ protocol SocketDelegate {
     func receivedData(data: NSData)
 }
 
+/**
+ To open a socket to an address such as "localhost:8080", just create a socket
+ object: `Socket("localhost", port: 8080)`.
+ 
+ To send data: socket.sendData(data)
+ 
+ To receive data: Have the class that responds to the data implement the
+ SocketDelegate protocol. The argument of `receiveData` is the data that has
+ been read from the socket.
+ */
 class Socket: NSObject, NSStreamDelegate {
     
     private var inputStream: NSInputStream!
     private var outputStream: NSOutputStream!
     
     var delegate: SocketDelegate?
+    
+    convenience init(host: String, port: UInt32) {
+        self.init()
+        connect(host, port: port)
+    }
     
     func connect(host: String, port: UInt32) {
         var readStream: Unmanaged<CFReadStream>?
