@@ -24,36 +24,36 @@ protocol SocketDelegate {
  */
 class Socket: NSObject, NSStreamDelegate {
     
-    private var inputStream: NSInputStream!
-    private var outputStream: NSOutputStream!
+    private var inputStream: NSInputStream?
+    private var outputStream: NSOutputStream?
     
     var delegate: SocketDelegate?
     
-    convenience init(host: String, port: UInt32) {
+    convenience init(host: String, port: Int) {
         self.init()
         connect(host, port: port)
     }
     
-    func connect(host: String, port: UInt32) {
-        var readStream: Unmanaged<CFReadStream>?
-        var writeStream: Unmanaged<CFWriteStream>?
-        CFStreamCreatePairWithSocketToHost(kCFAllocatorDefault, host, port, &readStream, &writeStream)
-        inputStream = readStream!.takeRetainedValue() as NSInputStream
-        outputStream = writeStream!.takeRetainedValue() as NSOutputStream
+    func connect(host: String, port: Int) {
+        NSStream.getStreamsToHostWithName(host, port: port, inputStream: &inputStream, outputStream: &outputStream)
         
-        inputStream.delegate = self
-        outputStream.delegate = self
-        
-        inputStream.scheduleInRunLoop(NSRunLoop.currentRunLoop(), forMode: NSDefaultRunLoopMode)
-        outputStream.scheduleInRunLoop(NSRunLoop.currentRunLoop(), forMode: NSDefaultRunLoopMode)
-        
-        inputStream.open()
-        outputStream.open()
+        if inputStream != nil && outputStream != nil {
+            inputStream!.delegate = self
+            outputStream!.delegate = self
+            
+            inputStream!.scheduleInRunLoop(.mainRunLoop(), forMode: NSDefaultRunLoopMode)
+            outputStream!.scheduleInRunLoop(.mainRunLoop(), forMode: NSDefaultRunLoopMode)
+            
+            inputStream!.open()
+            outputStream!.open()
+        } else {
+            print("Unable to create streams")
+        }
     }
     
     func sendData(data: NSData) {
         let encodedDataArray = UnsafePointer<UInt8>(data.bytes)
-        outputStream.write(encodedDataArray, maxLength: data.length)
+        outputStream?.write(encodedDataArray, maxLength: data.length)
     }
     
     func stream(aStream: NSStream, handleEvent eventCode: NSStreamEvent) {
@@ -63,18 +63,20 @@ class Socket: NSObject, NSStreamDelegate {
         case NSStreamEvent.HasBytesAvailable:
             if aStream == inputStream {
                 var buffer = [UInt8](count: 4096, repeatedValue: 0)
-                while inputStream.hasBytesAvailable {
-                    let len = inputStream.read(&buffer, maxLength: buffer.count)
+                while inputStream!.hasBytesAvailable {
+                    let len = inputStream!.read(&buffer, maxLength: buffer.count)
                     if len > 0 {
                         let data = NSData(bytes: &buffer, length: len)
                         
-                        print("Server said \(data)")
+                        print("Received data from server")
                         delegate?.receivedData(data)
                     }
                 }
             }
+        case NSStreamEvent.HasSpaceAvailable:
+            print("Stream has space")
         case NSStreamEvent.ErrorOccurred:
-            print("Can not connect to the host!")
+            print("ErrorOccurred: \(aStream.streamError?.description)")
         case NSStreamEvent.EndEncountered:
             aStream.close()
             aStream.removeFromRunLoop(NSRunLoop.currentRunLoop(), forMode: NSDefaultRunLoopMode)
